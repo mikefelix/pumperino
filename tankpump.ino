@@ -31,8 +31,9 @@ const long ledOn = 0;
 
 unsigned long prevMillis = 0;
 int ledState = LOW;
-int fillingState = 0;
+int isFilling = 0;
 unsigned long fillingStart = 0;
+unsigned long tankLowTime = 0;
 
 void setup()
 {
@@ -71,7 +72,7 @@ void loop()
      ledTo(fastBlink);
      pumpOff();
   }
-  else if (tankIsLow() || inFillingState()) {    
+  else if (tankIsLow() && tankHasBeenLowFor(10000)) {    
      debug(11);
      ledTo(ledOn);
      pumpOn();
@@ -85,10 +86,10 @@ void loop()
 
 int inFillingState() {
   if (millis() - fillingStart > 10000){
-    fillingState = 0;
+    isFilling = 0;
   }
   
-  return fillingState;
+  return isFilling;
 }
 
 void debug(int pin){
@@ -118,20 +119,36 @@ void ledTo(long interval){
 
 int switchIsOff(){ return digitalRead(SWITCH_PIN) == HIGH; }
 int bucketIsLow(){ return digitalRead(BUCKET_FLOAT_PIN) == LOW; }
-int tankIsLow(){ return digitalRead(TANK_FLOAT_PIN) == LOW; }
+int tankIsLow(){ 
+    if (digitalRead(TANK_FLOAT_PIN) == LOW){ 
+        if (tankLowTime == 0)
+           tankLowTime = millis();
+
+        return 1;
+    }
+    else {
+        tankLowTime = 0;
+        return 0;
+    }
+}
+
 int sensorIsTripped(){ return digitalRead(SENSOR_PIN) == LOW; }
+
+int tankHasBeenLowFor(int mils){
+  return tankLowTime != 0 && millis() - tankLowTime > mils;
+}
 
 void pumpOn() { 
   digitalWrite(PUMP_PIN, HIGH);
-  if (!fillingState){
-    fillingState = 1;
+  if (!isFilling){
+    isFilling = 1;
     fillingStart = millis();
   }
 }
 
 void pumpOff() { 
   digitalWrite(PUMP_PIN, LOW); 
-  fillingState = 0;
+  isFilling = 0;
 }
 
 
